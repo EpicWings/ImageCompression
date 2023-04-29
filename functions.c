@@ -1,5 +1,7 @@
 #include "declarations.h"
 
+#define zero 0
+
 // initialize a color node
 TTree InitCNode(unsigned char red, unsigned char green, unsigned char blue)
 {
@@ -124,6 +126,37 @@ unsigned long long avgMean(RGB **imageMatrix, RGB avgColor, unsigned int size, u
     return mean;
 }
 
+// read the arg. when executing
+void ReadExecArg(int argc, char *argv[])
+{
+    TTree arb = NULL;
+    RGB **imageMatrix = NULL;
+    unsigned int width = zero, height = zero, nodeMaxSize = zero;
+
+    if(strcmp(argv[1],"-c1") == 0)
+    {
+        int similarity = atoi(argv[2]);
+
+        ReadPPMfile(argv[3], &imageMatrix, &width, &height);
+        CompressImage(&imageMatrix, &arb, width, zero, zero, similarity, &nodeMaxSize);
+        WriteInfoTree(argv[4], arb, nodeMaxSize);
+    }
+    if(strcmp(argv[1],"-c2") == 0)
+    {
+
+    }
+    if(strcmp(argv[1],"-d") == 0)
+    {
+
+    }
+
+    
+    //WriteCompressedFile("./quadtree.bin", arb, width);
+
+    DestroyTree(&arb);
+    DestroyImageMatrix(&imageMatrix, height);
+}
+
 // read a PPM file and store it in a RGB matrix
 void ReadPPMfile(char *filename, RGB ***imageMatrix, unsigned int *width, unsigned int *height)
 {
@@ -235,7 +268,7 @@ void WriteInfoTree(char *fileName, TTree arb, unsigned int nodeMaxSize)
     FILE *file = fopen(fileName, "w");
     if (!file)
     {
-        printf("Couldn't open the file");
+        printf("Couldn't open the file\n");
         return;
     }
 
@@ -248,7 +281,17 @@ void WriteInfoTree(char *fileName, TTree arb, unsigned int nodeMaxSize)
 }
 
 //storing the values of the quadtree in a binary format
-void WriteCompressedFile(char *fileName, TTree arb)
+void WriteCompressedFile(char *fileName, TTree arb, unsigned int size)
 {
-    
+    FILE *file = fopen(fileName, "wb");
+    if(!file)
+    {
+        printf("Error at opening the file\n");
+        return;
+    }
+
+    fwrite(&size, 1, sizeof(unsigned int), file);
+
+
+    fclose(file);
 }
