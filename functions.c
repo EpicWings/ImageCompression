@@ -1,9 +1,9 @@
 #include "declarations.h"
 
 // initialize a color node
-TArb InitCNode(unsigned char red, unsigned char green, unsigned char blue)
+TTree InitCNode(unsigned char red, unsigned char green, unsigned char blue)
 {
-    TArb aux = (TArb)malloc(sizeof(TNod));
+    TTree aux = (TTree)malloc(sizeof(TNode));
     if (!aux)
         return NULL;
 
@@ -23,9 +23,9 @@ TArb InitCNode(unsigned char red, unsigned char green, unsigned char blue)
 }
 
 // initialize an empty node
-TArb InitNode()
+TTree InitNode()
 {
-    TArb aux = (TArb)malloc(sizeof(TNod));
+    TTree aux = (TTree)malloc(sizeof(TNode));
     if (!aux)
         return NULL;
 
@@ -52,7 +52,7 @@ RGB **InitImageMatrix(unsigned int width, unsigned int height)
     return imageMatrix;
 }
 
-void DestroyNode(TArb arb)
+void DestroyNode(TTree arb)
 {
     if (!arb)
         return;
@@ -68,7 +68,7 @@ void DestroyNode(TArb arb)
     free(arb);
 }
 
-void DestroyArb(TArb *arb)
+void DestroyTree(TTree *arb)
 {
     if (!(*arb))
         return;
@@ -89,8 +89,8 @@ RGB AvgColor(RGB **imageMatrix, unsigned int size, unsigned int startX, unsigned
     RGB avgColor;
     unsigned long long red = 0, green = 0, blue = 0;
 
-    for(int i = startX; i < size; i++)
-        for(int j = startY; j < size; j++)
+    for (int i = startX; i < startX + size; i++)
+        for (int j = startY; j < startY + size; j++)
         {
             red += imageMatrix[i][j].red;
             green += imageMatrix[i][j].green;
@@ -104,22 +104,22 @@ RGB AvgColor(RGB **imageMatrix, unsigned int size, unsigned int startX, unsigned
     avgColor.green = green;
     avgColor.blue = blue;
 
-    return avgColor;    
+    return avgColor;
 }
 
 unsigned long long avgMean(RGB **imageMatrix, RGB avgColor, unsigned int size, unsigned int startX, unsigned int startY)
 {
     unsigned long long mean = 0;
 
-    for(int i = startX; i < size; i++)
-        for(int j = startY; j < size; j++)
+    for (int i = startX; i < size; i++)
+        for (int j = startY; j < size; j++)
         {
             mean += (avgColor.red - imageMatrix[i][j].red) * (avgColor.red - imageMatrix[i][j].red);
             mean += (avgColor.green - imageMatrix[i][j].green) * (avgColor.green - imageMatrix[i][j].green);
             mean += (avgColor.blue - imageMatrix[i][j].blue) * (avgColor.blue - imageMatrix[i][j].blue);
         }
 
-    mean = mean / ( 3 * size * size);
+    mean = mean / (3 * size * size);
 
     return mean;
 }
@@ -134,20 +134,20 @@ void ReadPPMfile(char *filename, RGB ***imageMatrix, unsigned int *width, unsign
         return;
     }
 
-    char *line = (char *)malloc(100 * sizeof(char));
-    if (!line)
-        return;
-
+    char line[4];
     unsigned int maxval;
 
     // read the header
-    fgets(line, 100, file);
+    fgets(line, sizeof(line), file);
+    line[strlen(line) - 1] = '\0'; // remove the '\n' from the end of the line
 
-    if (strcmp(line, "P6\n") != 0)
+    if (strcmp(line, "P6") != 0)
     {
         printf("Error at reading the header\n");
+        fclose(file);
         return;
     }
+
     fscanf(file, "%u %u %u", width, height, &maxval);
     fseek(file, 1, SEEK_CUR);
 
@@ -162,18 +162,93 @@ void ReadPPMfile(char *filename, RGB ***imageMatrix, unsigned int *width, unsign
             fread(&(*imageMatrix)[i][j].blue, sizeof(unsigned char), 1, file);
         }
 
-    free(line);
     fclose(file);
 }
 
 // create the quadtree
-void CompressImage(RGB ***imageMatrix, TArb *arb, unsigned int size, unsigned int startX, unsigned int startY, unsigned long long similarity)
+void CompressImage(RGB ***imageMatrix, TTree *arb, unsigned int size, unsigned int startX, unsigned int startY, unsigned long long similarity, unsigned int *nodeMaxSize)
 {
+    if (size <= 0)
+        return;
+
     RGB avgColor = AvgColor(*imageMatrix, size, startX, startY);
     unsigned long long mean = avgMean(*imageMatrix, avgColor, size, startX, startY);
 
-    printf("%d %d %d\n", avgColor.red, avgColor.green, avgColor.blue);
-    printf("%llu\n", mean);
+    if (mean > similarity)
+    {
+        *arb = InitNode();
 
+        CompressImage(imageMatrix, &(*arb)->topLeft, size / 2, startX, startY, similarity, nodeMaxSize);
+        CompressImage(imageMatrix, &(*arb)->topRight, size / 2, startX, startY + size / 2, similarity, nodeMaxSize);
+        CompressImage(imageMatrix, &(*arb)->botLeft, size / 2, startX + size / 2, startY, similarity, nodeMaxSize);
+        CompressImage(imageMatrix, &(*arb)->botRight, size / 2, startX + size / 2, startY + size / 2, similarity, nodeMaxSize);
+    }
+    else
+    {
+        int length = size - startX;
+        if (length > *nodeMaxSize)
+            *nodeMaxSize = length;
 
+        *arb = InitCNode(avgColor.red, avgColor.green, avgColor.blue);
+        return;
+    }
+}
+
+int max(int x, int y)
+{
+    return x > y ? x : y;
+}
+
+int CountLevel(TTree arb)
+{
+    int nrUL, nrUR, nrBL, nrBR;
+
+    if (!arb)
+        return 0;
+
+    nrUL = CountLevel(arb->topLeft);
+    nrUR = CountLevel(arb->topRight);
+    nrBL = CountLevel(arb->botLeft);
+    nrBR = CountLevel(arb->botRight);
+
+    return 1 + max(max(nrUR, nrUL), max(nrBL, nrBR));
+}
+
+//counting the nodes which contains color
+void CountCNodes(TTree arb, int *nr)
+{
+    if (!arb)
+        return;
+
+    if (arb->type == ColorNode)
+        (*nr)++;
+
+    CountCNodes(arb->topLeft, nr);
+    CountCNodes(arb->topRight, nr);
+    CountCNodes(arb->botLeft, nr);
+    CountCNodes(arb->botRight, nr);
+}
+
+//creating a .out file with some info about the quadtree
+void WriteInfoTree(char *fileName, TTree arb, unsigned int nodeMaxSize)
+{
+    FILE *file = fopen(fileName, "w");
+    if (!file)
+    {
+        printf("Couldn't open the file");
+        return;
+    }
+
+    int nr = 0;
+    CountCNodes(arb, &nr);
+
+    fprintf(file, "%d\n%d\n%d\n", CountLevel(arb), nr, nodeMaxSize);
+
+    fclose(file);
+}
+
+//storing the values of the quadtree in a binary format
+void WriteCompressedFile(char *fileName, TTree arb)
+{
+    
 }

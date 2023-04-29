@@ -5,14 +5,16 @@
 
 int main()
 {
-    TArb arb = NULL;
+    TTree arb = NULL;
     RGB **imageMatrix = NULL;
-    unsigned int width, height;
+    unsigned int width = zero, height = zero, nodeMaxSize = zero;
 
     ReadPPMfile(filepath, &imageMatrix, &width, &height);
-    CompressImage(&imageMatrix, &arb, width, zero, zero, 100);
+    CompressImage(&imageMatrix, &arb, width, zero, zero, 100,&nodeMaxSize);
 
-    DestroyArb(&arb);
+    WriteInfoTree("./quadtree.out",arb,nodeMaxSize);
+
+    DestroyTree(&arb);
     DestroyImageMatrix(&imageMatrix, height);
     return 0;
 }
