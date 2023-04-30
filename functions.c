@@ -1,4 +1,5 @@
 #include "declarations.h"
+#include "queue.h"
 
 #define zero 0
 
@@ -113,15 +114,17 @@ unsigned long long avgMean(RGB **imageMatrix, RGB avgColor, unsigned int size, u
 {
     unsigned long long mean = 0;
 
-    for (int i = startX; i < size; i++)
-        for (int j = startY; j < size; j++)
+    for (int i = startX; i < startX + size; i++)
+        for (int j = startY; j < startY + size; j++)
         {
-            mean += (avgColor.red - imageMatrix[i][j].red) * (avgColor.red - imageMatrix[i][j].red);
-            mean += (avgColor.green - imageMatrix[i][j].green) * (avgColor.green - imageMatrix[i][j].green);
-            mean += (avgColor.blue - imageMatrix[i][j].blue) * (avgColor.blue - imageMatrix[i][j].blue);
+            int red = (int)(avgColor.red - imageMatrix[i][j].red);
+            int green = (int)(avgColor.green - imageMatrix[i][j].green);
+            int blue = (int)(avgColor.blue - imageMatrix[i][j].blue);
+
+            mean += red * red + green * green + blue * blue;
         }
 
-    mean = mean / (3 * size * size);
+    mean = mean / (unsigned long long)(3 * size * size);
 
     return mean;
 }
@@ -133,7 +136,7 @@ void ReadExecArg(int argc, char *argv[])
     RGB **imageMatrix = NULL;
     unsigned int width = zero, height = zero, nodeMaxSize = zero;
 
-    if(strcmp(argv[1],"-c1") == 0)
+    if (strcmp(argv[1], "-c1") == 0)
     {
         int similarity = atoi(argv[2]);
 
@@ -141,17 +144,17 @@ void ReadExecArg(int argc, char *argv[])
         CompressImage(&imageMatrix, &arb, width, zero, zero, similarity, &nodeMaxSize);
         WriteInfoTree(argv[4], arb, nodeMaxSize);
     }
-    if(strcmp(argv[1],"-c2") == 0)
+    if (strcmp(argv[1], "-c2") == 0)
     {
+        int similarity = atoi(argv[2]);
 
+        ReadPPMfile(argv[3], &imageMatrix, &width, &height);
+        CompressImage(&imageMatrix, &arb, width, zero, zero, similarity, &nodeMaxSize);
+        WriteCompressedFile(argv[4], arb, width);
     }
-    if(strcmp(argv[1],"-d") == 0)
+    if (strcmp(argv[1], "-d") == 0)
     {
-
     }
-
-    
-    //WriteCompressedFile("./quadtree.bin", arb, width);
 
     DestroyTree(&arb);
     DestroyImageMatrix(&imageMatrix, height);
@@ -218,7 +221,7 @@ void CompressImage(RGB ***imageMatrix, TTree *arb, unsigned int size, unsigned i
     }
     else
     {
-        int length = size - startX;
+        int length = size;
         if (length > *nodeMaxSize)
             *nodeMaxSize = length;
 
@@ -247,7 +250,7 @@ int CountLevel(TTree arb)
     return 1 + max(max(nrUR, nrUL), max(nrBL, nrBR));
 }
 
-//counting the nodes which contains color
+// counting the nodes which contains color
 void CountCNodes(TTree arb, int *nr)
 {
     if (!arb)
@@ -262,7 +265,7 @@ void CountCNodes(TTree arb, int *nr)
     CountCNodes(arb->botRight, nr);
 }
 
-//creating a .out file with some info about the quadtree
+// creating a .out file with some info about the quadtree
 void WriteInfoTree(char *fileName, TTree arb, unsigned int nodeMaxSize)
 {
     FILE *file = fopen(fileName, "w");
@@ -280,11 +283,34 @@ void WriteInfoTree(char *fileName, TTree arb, unsigned int nodeMaxSize)
     fclose(file);
 }
 
-//storing the values of the quadtree in a binary format
+void WriteCompressedFileAux(FILE *file, TTree arb)
+{
+    if (!arb)
+        return;
+
+    if (arb->type == ColorNode)
+    {
+        fwrite("1", 1, sizeof(unsigned char), file);
+        fwrite(&((RGB *)arb->info)->red, 1, sizeof(unsigned char), file);
+        fwrite(&((RGB *)arb->info)->green, 1, sizeof(unsigned char), file);
+        fwrite(&((RGB *)arb->info)->blue, 1, sizeof(unsigned char), file);
+    }
+    else
+    {
+        fwrite("0", 1, sizeof(unsigned char), file);
+    }
+
+    WriteCompressedFileAux(file, arb->topLeft);
+    WriteCompressedFileAux(file, arb->topRight);
+    WriteCompressedFileAux(file, arb->botLeft);
+    WriteCompressedFileAux(file, arb->botRight);
+}
+
+// storing the values of the quadtree in a binary format
 void WriteCompressedFile(char *fileName, TTree arb, unsigned int size)
 {
     FILE *file = fopen(fileName, "wb");
-    if(!file)
+    if (!file)
     {
         printf("Error at opening the file\n");
         return;
@@ -292,6 +318,7 @@ void WriteCompressedFile(char *fileName, TTree arb, unsigned int size)
 
     fwrite(&size, 1, sizeof(unsigned int), file);
 
+    WriteCompressedFileAux(file, arb);
 
     fclose(file);
 }
