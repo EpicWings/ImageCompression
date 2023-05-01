@@ -52,5 +52,4 @@ int CountLevel(TTree arb);
 void CountCNodes(TTree arb, int *nr);
 void WriteInfoTree(char *fileName, TTree arb, unsigned int nodeMaxSize);
 void WriteCompressedFile(char *fileName, TTree arb, unsigned int size);
-void RestoreQuadTree(FILE *file, TTree *arb);
 void DecompressImage(char *inFile, char *outFile);

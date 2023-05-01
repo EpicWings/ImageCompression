@@ -2,6 +2,29 @@
 
 #define zero 0
 
+void PrintQuadTree(TTree arb)
+{
+    if (!arb)
+    {
+        return;
+    }
+
+    if (arb->type == ColorNode)
+    {
+        printf("(%d %d %d)", ((RGB *)arb->info)->red, ((RGB *)arb->info)->green, ((RGB *)arb->info)->blue);
+        return;
+    }
+
+    printf("[");
+    printf("0 ");
+    PrintQuadTree(arb->topLeft);
+    PrintQuadTree(arb->topRight);
+    PrintQuadTree(arb->botLeft);
+    PrintQuadTree(arb->botRight);
+
+    printf("]");
+}
+
 // initialize a color node
 TTree InitCNode(unsigned char red, unsigned char green, unsigned char blue)
 {
@@ -215,7 +238,7 @@ void ReadExecArg(int argc, char *argv[])
     }
     if (strcmp(argv[1], "-d") == 0)
     {
-        DecompressImage(argv[2],argv[3]);
+        DecompressImage(argv[2], argv[3]);
     }
 
     DestroyTree(&arb);
@@ -394,56 +417,151 @@ void WriteCompressedFile(char *fileName, TTree arb, unsigned int size)
     fclose(file);
 }
 
-void RestoreQuadTree(FILE *file, TTree *arb)
+TTree RestoreQuadTree(FILE *file)
 {
-    if (feof(file))
+    TQueue *q = InitQueue();
+    TTree arb = NULL;
+    arb->type = EmptyNode;
+    AddQueue(q, &arb);
+    
+    unsigned char value = 0;
+
+    while(!feof(file))
+    {
+        TTree tree = ExtractQueue(q);
+        fread(&value, 1, sizeof(unsigned char), file);
+
+        if(value == 1)
+        {
+            unsigned char red, green, blue;
+            fread(&red, 1, sizeof(unsigned char), file);
+            fread(&green, 1, sizeof(unsigned char), file);
+            fread(&blue, 1, sizeof(unsigned char), file);
+            tree = InitCNode(red, green, blue);
+        }
+        else
+        {
+            tree->topLeft = InitNode();
+            AddQueue(q, &(tree->topLeft));
+            
+            fread(&value, 1, sizeof(unsigned char), file);
+            if(value == 1)
+            {
+                unsigned char red, green, blue;
+                fread(&red, 1, sizeof(unsigned char), file);
+                fread(&green, 1, sizeof(unsigned char), file);
+                fread(&blue, 1, sizeof(unsigned char), file);
+                tree->topRight = InitCNode(red, green, blue);
+            }
+
+            tree->topRight = InitNode();
+            AddQueue(q, &(tree->topRight));
+
+            fread(&value, 1, sizeof(unsigned char), file);
+            if(value == 1)
+            {
+                unsigned char red, green, blue;
+                fread(&red, 1, sizeof(unsigned char), file);
+                fread(&green, 1, sizeof(unsigned char), file);
+                fread(&blue, 1, sizeof(unsigned char), file);
+                tree->botRight = InitCNode(red, green, blue);
+            }
+
+            tree->botRight = InitNode();
+            AddQueue(q, &(tree->botRight));
+
+            fread(&value, 1, sizeof(unsigned char), file);
+            if(value == 1)
+            {
+                unsigned char red, green, blue;
+                fread(&red, 1, sizeof(unsigned char), file);
+                fread(&green, 1, sizeof(unsigned char), file);
+                fread(&blue, 1, sizeof(unsigned char), file);
+                tree->botLeft = InitCNode(red, green, blue);
+            }
+
+            tree->botLeft = InitNode();
+            AddQueue(q, &(tree->botLeft));
+
+            fread(&value, 1, sizeof(unsigned char), file);
+            if(value == 1)
+            {
+                unsigned char red, green, blue;
+                fread(&red, 1, sizeof(unsigned char), file);
+                fread(&green, 1, sizeof(unsigned char), file);
+                fread(&blue, 1, sizeof(unsigned char), file);
+                tree->botLeft = InitCNode(red, green, blue);
+            }
+        }
+    }
+
+    return arb;
+}
+
+void RestoreImageMatrix(FILE *file, TTree arb, RGB ***imageMatrix, unsigned int size, unsigned int startX, unsigned int startY)
+{
+    if (!arb)
         return;
 
-    unsigned char value = 0;
-    fread(&value, 1, sizeof(unsigned char), file);
-
-    if (value == 1)
+    if (arb->type == ColorNode)
     {
-        unsigned char red = 0, green = 0, blue = 0;
-        fread(&red, 1, sizeof(unsigned char), file);
-        fread(&green, 1, sizeof(unsigned char), file);
-        fread(&blue, 1, sizeof(unsigned char), file);
-
-        *arb = InitCNode(red,green,blue);
+        for (int i = startX; i < startX + size; i++)
+            for (int j = startY; j < startY + size; j++)
+            {
+                (*imageMatrix)[i][j].red = ((RGB *)arb->info)->red;
+                (*imageMatrix)[i][j].green = ((RGB *)arb->info)->green;
+                (*imageMatrix)[i][j].blue = ((RGB *)arb->info)->blue;
+            }
     }
     else
     {
-        *arb = InitNode();
-
-        RestoreQuadTree(file,&(*arb)->topLeft);
-        RestoreQuadTree(file,&(*arb)->topRight);
-        RestoreQuadTree(file,&(*arb)->botLeft);
-        RestoreQuadTree(file,&(*arb)->botRight);
+        RestoreImageMatrix(file, arb->topLeft, imageMatrix, size / 2, startX, startY);
+        RestoreImageMatrix(file, arb->topRight, imageMatrix, size / 2, startX, startY + size / 2);
+        RestoreImageMatrix(file, arb->botLeft, imageMatrix, size / 2, startX + size / 2, startY);
+        RestoreImageMatrix(file, arb->botRight, imageMatrix, size / 2, startX + size / 2, startY + size / 2);
     }
-}
-
-void RestoreImageMatrix(FILE *file, TTree arb, RGB ***imageMatrix, unsigned int size)
-{
-
 }
 
 // decompressing the image
 void DecompressImage(char *inFile, char *outFile)
 {
-    unsigned int size;
+    unsigned int size = 0;
     TTree arb = NULL;
-    FILE *file = fopen(inFile, "rb");
-    if (!file)
+    FILE *in = fopen(inFile, "rb");
+    if (!in)
+    {
+        printf("Error at opening the file\n");
+        return;
+    }
+    FILE *out = fopen(outFile, "wb");
+    if (!out)
     {
         printf("Error at opening the file\n");
         return;
     }
 
-    fread(&size, sizeof(unsigned int), 1, file);
-    RGB **imageMatrix = InitImageMatrix(size,size);
+    fread(&size, sizeof(unsigned int), 1, in);
+    RGB **imageMatrix = InitImageMatrix(size, size);
 
-    RestoreQuadTree(file, &arb);
-    RestoreImageMatrix(file,arb,&imageMatrix,size);
+    arb = RestoreQuadTree(in);
+    RestoreImageMatrix(in, arb, &imageMatrix, size, 0, 0);
 
-    DestroyImageMatrix(&imageMatrix,size);
+    fprintf(out, "P6\n%d %d\n255\n", size, size);
+
+    for (int i = 0; i < size; i++)
+        for (int j = 0; j < size; j++)
+        {
+            fwrite(&imageMatrix[i][j].red, sizeof(unsigned char), 1, out);
+            fwrite(&imageMatrix[i][j].green, sizeof(unsigned char), 1, out);
+            fwrite(&imageMatrix[i][j].blue, sizeof(unsigned char), 1, out);
+        }
+
+    PrintQuadTree(arb);
+    printf("\n");
+
+    DestroyImageMatrix(&imageMatrix, size);
+    DestroyTree(&arb);
+
+    fclose(in);
+    fclose(out);
 }
