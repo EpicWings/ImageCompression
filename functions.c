@@ -1,5 +1,4 @@
 #include "declarations.h"
-#include "queue.h"
 
 #define zero 0
 
@@ -87,6 +86,68 @@ void DestroyImageMatrix(RGB ***imageMatrix, unsigned int height)
     *imageMatrix = NULL;
 }
 
+TQueue *InitQueue()
+{
+    TQueue *queue = (TQueue *)malloc(sizeof(TQueue));
+    if (!queue)
+        return NULL;
+
+    queue->first = NULL;
+    queue->last = NULL;
+
+    return queue;
+}
+
+void AddQueue(TQueue *q, TTree *tree)
+{
+    TList list = (TList)malloc(sizeof(TCell));
+    if (!list)
+        return;
+
+    list->info = *tree;
+    list->next = NULL;
+
+    if (q->last != NULL)
+        q->last->next = list;
+    else
+        q->first = list;
+
+    q->last = list;
+}
+
+TTree ExtractQueue(TQueue *q)
+{
+    if (q->first == NULL && q->last == NULL)
+        return NULL;
+
+    TList list = q->first;
+
+    q->first = q->first->next;
+
+    if (!q->first)
+        q->last = NULL;
+
+    TTree aux = list->info;
+    free(list);
+
+    return aux;
+}
+
+void DestroyQueue(TQueue **q)
+{
+    TList p, aux;
+    p = (*q)->first;
+
+    while (p)
+    {
+        aux = p;
+        p = p->next;
+        free(aux);
+    }
+    free(*q);
+    *q = NULL;
+}
+
 RGB AvgColor(RGB **imageMatrix, unsigned int size, unsigned int startX, unsigned int startY)
 {
     RGB avgColor;
@@ -154,6 +215,7 @@ void ReadExecArg(int argc, char *argv[])
     }
     if (strcmp(argv[1], "-d") == 0)
     {
+        DecompressImage(argv[2],argv[3]);
     }
 
     DestroyTree(&arb);
@@ -283,29 +345,6 @@ void WriteInfoTree(char *fileName, TTree arb, unsigned int nodeMaxSize)
     fclose(file);
 }
 
-void WriteCompressedFileAux(FILE *file, TTree arb)
-{
-    if (!arb)
-        return;
-
-    if (arb->type == ColorNode)
-    {
-        fwrite("1", 1, sizeof(unsigned char), file);
-        fwrite(&((RGB *)arb->info)->red, 1, sizeof(unsigned char), file);
-        fwrite(&((RGB *)arb->info)->green, 1, sizeof(unsigned char), file);
-        fwrite(&((RGB *)arb->info)->blue, 1, sizeof(unsigned char), file);
-    }
-    else
-    {
-        fwrite("0", 1, sizeof(unsigned char), file);
-    }
-
-    WriteCompressedFileAux(file, arb->topLeft);
-    WriteCompressedFileAux(file, arb->topRight);
-    WriteCompressedFileAux(file, arb->botLeft);
-    WriteCompressedFileAux(file, arb->botRight);
-}
-
 // storing the values of the quadtree in a binary format
 void WriteCompressedFile(char *fileName, TTree arb, unsigned int size)
 {
@@ -316,9 +355,95 @@ void WriteCompressedFile(char *fileName, TTree arb, unsigned int size)
         return;
     }
 
-    fwrite(&size, 1, sizeof(unsigned int), file);
+    fwrite(&size, sizeof(unsigned int), 1, file);
 
-    WriteCompressedFileAux(file, arb);
+    // store in a transversal order the values of the quadtree
+    TQueue *q = InitQueue();
+    TTree tree = arb;
+    unsigned char value = 0;
 
+    if (!arb)
+        return;
+
+    while (tree != NULL)
+    {
+        if (tree->type == ColorNode)
+        {
+            value = 1;
+            fwrite(&value, 1, sizeof(unsigned char), file);
+            fwrite(&((RGB *)tree->info)->red, 1, sizeof(unsigned char), file);
+            fwrite(&((RGB *)tree->info)->green, 1, sizeof(unsigned char), file);
+            fwrite(&((RGB *)tree->info)->blue, 1, sizeof(unsigned char), file);
+        }
+        else
+        {
+            value = 0;
+            fwrite(&value, 1, sizeof(unsigned char), file);
+            AddQueue(q, &(tree->topLeft));
+            AddQueue(q, &(tree->topRight));
+            AddQueue(q, &(tree->botRight));
+            AddQueue(q, &(tree->botLeft));
+        }
+
+        tree = ExtractQueue(q);
+    }
+
+    DestroyQueue(&q);
+
+    fflush(file);
     fclose(file);
+}
+
+void RestoreQuadTree(FILE *file, TTree *arb)
+{
+    if (feof(file))
+        return;
+
+    unsigned char value = 0;
+    fread(&value, 1, sizeof(unsigned char), file);
+
+    if (value == 1)
+    {
+        unsigned char red = 0, green = 0, blue = 0;
+        fread(&red, 1, sizeof(unsigned char), file);
+        fread(&green, 1, sizeof(unsigned char), file);
+        fread(&blue, 1, sizeof(unsigned char), file);
+
+        *arb = InitCNode(red,green,blue);
+    }
+    else
+    {
+        *arb = InitNode();
+
+        RestoreQuadTree(file,&(*arb)->topLeft);
+        RestoreQuadTree(file,&(*arb)->topRight);
+        RestoreQuadTree(file,&(*arb)->botLeft);
+        RestoreQuadTree(file,&(*arb)->botRight);
+    }
+}
+
+void RestoreImageMatrix(FILE *file, TTree arb, RGB ***imageMatrix, unsigned int size)
+{
+
+}
+
+// decompressing the image
+void DecompressImage(char *inFile, char *outFile)
+{
+    unsigned int size;
+    TTree arb = NULL;
+    FILE *file = fopen(inFile, "rb");
+    if (!file)
+    {
+        printf("Error at opening the file\n");
+        return;
+    }
+
+    fread(&size, sizeof(unsigned int), 1, file);
+    RGB **imageMatrix = InitImageMatrix(size,size);
+
+    RestoreQuadTree(file, &arb);
+    RestoreImageMatrix(file,arb,&imageMatrix,size);
+
+    DestroyImageMatrix(&imageMatrix,size);
 }
