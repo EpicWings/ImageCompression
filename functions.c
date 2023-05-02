@@ -421,79 +421,92 @@ TTree RestoreQuadTree(FILE *file)
 {
     TQueue *q = InitQueue();
     TTree arb = NULL;
-    arb->type = EmptyNode;
-    AddQueue(q, &arb);
-    
     unsigned char value = 0;
 
-    while(!feof(file))
+    fread(&value, 1, sizeof(unsigned char), file);
+    if (value == 1)
+    {
+        unsigned char red, green, blue;
+        fread(&red, 1, sizeof(unsigned char), file);
+        fread(&green, 1, sizeof(unsigned char), file);
+        fread(&blue, 1, sizeof(unsigned char), file);
+        arb = InitCNode(red, green, blue);
+
+        DestroyQueue(&q);
+        return arb;
+    }
+    else
+    {
+        arb = InitNode();
+        AddQueue(q, &arb);
+    }
+
+    while (q->first != NULL)
     {
         TTree tree = ExtractQueue(q);
-        fread(&value, 1, sizeof(unsigned char), file);
 
-        if(value == 1)
+        fread(&value, 1, sizeof(unsigned char), file);
+        if (value == 1)
         {
             unsigned char red, green, blue;
             fread(&red, 1, sizeof(unsigned char), file);
             fread(&green, 1, sizeof(unsigned char), file);
             fread(&blue, 1, sizeof(unsigned char), file);
-            tree = InitCNode(red, green, blue);
+            tree->topLeft = InitCNode(red, green, blue);
         }
-        else
+        if (value == 0)
         {
             tree->topLeft = InitNode();
             AddQueue(q, &(tree->topLeft));
-            
-            fread(&value, 1, sizeof(unsigned char), file);
-            if(value == 1)
-            {
-                unsigned char red, green, blue;
-                fread(&red, 1, sizeof(unsigned char), file);
-                fread(&green, 1, sizeof(unsigned char), file);
-                fread(&blue, 1, sizeof(unsigned char), file);
-                tree->topRight = InitCNode(red, green, blue);
-            }
+        }
 
+        fread(&value, 1, sizeof(unsigned char), file);
+        if (value == 1)
+        {
+            unsigned char red, green, blue;
+            fread(&red, 1, sizeof(unsigned char), file);
+            fread(&green, 1, sizeof(unsigned char), file);
+            fread(&blue, 1, sizeof(unsigned char), file);
+            tree->topRight = InitCNode(red, green, blue);
+        }
+        if (value == 0)
+        {
             tree->topRight = InitNode();
             AddQueue(q, &(tree->topRight));
+        }
 
-            fread(&value, 1, sizeof(unsigned char), file);
-            if(value == 1)
-            {
-                unsigned char red, green, blue;
-                fread(&red, 1, sizeof(unsigned char), file);
-                fread(&green, 1, sizeof(unsigned char), file);
-                fread(&blue, 1, sizeof(unsigned char), file);
-                tree->botRight = InitCNode(red, green, blue);
-            }
-
+        fread(&value, 1, sizeof(unsigned char), file);
+        if (value == 1)
+        {
+            unsigned char red, green, blue;
+            fread(&red, 1, sizeof(unsigned char), file);
+            fread(&green, 1, sizeof(unsigned char), file);
+            fread(&blue, 1, sizeof(unsigned char), file);
+            tree->botRight = InitCNode(red, green, blue);
+        }
+        if (value == 0)
+        {
             tree->botRight = InitNode();
             AddQueue(q, &(tree->botRight));
+        }
 
-            fread(&value, 1, sizeof(unsigned char), file);
-            if(value == 1)
-            {
-                unsigned char red, green, blue;
-                fread(&red, 1, sizeof(unsigned char), file);
-                fread(&green, 1, sizeof(unsigned char), file);
-                fread(&blue, 1, sizeof(unsigned char), file);
-                tree->botLeft = InitCNode(red, green, blue);
-            }
-
+        fread(&value, 1, sizeof(unsigned char), file);
+        if (value == 1)
+        {
+            unsigned char red, green, blue;
+            fread(&red, 1, sizeof(unsigned char), file);
+            fread(&green, 1, sizeof(unsigned char), file);
+            fread(&blue, 1, sizeof(unsigned char), file);
+            tree->botLeft = InitCNode(red, green, blue);
+        }
+        if (value == 0)
+        {
             tree->botLeft = InitNode();
             AddQueue(q, &(tree->botLeft));
-
-            fread(&value, 1, sizeof(unsigned char), file);
-            if(value == 1)
-            {
-                unsigned char red, green, blue;
-                fread(&red, 1, sizeof(unsigned char), file);
-                fread(&green, 1, sizeof(unsigned char), file);
-                fread(&blue, 1, sizeof(unsigned char), file);
-                tree->botLeft = InitCNode(red, green, blue);
-            }
         }
     }
+
+    DestroyQueue(&q);
 
     return arb;
 }
