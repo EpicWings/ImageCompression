@@ -1,3 +1,4 @@
+/*Pasca Robert-Paul 315CB*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,4 +53,6 @@ int CountLevel(TTree arb);
 void CountCNodes(TTree arb, int *nr);
 void WriteInfoTree(char *fileName, TTree arb, unsigned int nodeMaxSize);
 void WriteCompressedFile(char *fileName, TTree arb, unsigned int size);
+TTree RestoreQuadTree(FILE *file);
+void RestoreImageMatrix(FILE *file, TTree arb, RGB ***imageMatrix, unsigned int size, unsigned int startX, unsigned int startY);
 void DecompressImage(char *inFile, char *outFile);

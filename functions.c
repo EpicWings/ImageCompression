@@ -1,3 +1,4 @@
+/*Pasca Robert-Paul 315CB*/
 #include "declarations.h"
 
 #define zero 0
@@ -568,9 +569,6 @@ void DecompressImage(char *inFile, char *outFile)
             fwrite(&imageMatrix[i][j].green, sizeof(unsigned char), 1, out);
             fwrite(&imageMatrix[i][j].blue, sizeof(unsigned char), 1, out);
         }
-
-    PrintQuadTree(arb);
-    printf("\n");
 
     DestroyImageMatrix(&imageMatrix, size);
     DestroyTree(&arb);

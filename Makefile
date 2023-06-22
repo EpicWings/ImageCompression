@@ -1,5 +1,5 @@
 build:
-	gcc -o quadtree main.c functions.c
+	gcc -std=gnu11 -o quadtree main.c functions.c
 run:
 	./quadtree
 clean:
