@@ -1,4 +1,3 @@
-/*Pasca Robert-Paul 315CB*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

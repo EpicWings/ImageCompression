@@ -1,4 +1,3 @@
-/*Pasca Robert-Paul 315CB*/
 #include "declarations.h"
 
 #define zero 0
