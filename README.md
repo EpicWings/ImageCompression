@@ -77,9 +77,11 @@ void CompressImage(RGB ***imageMatrix, TTree *arb, unsigned int size, unsigned i
 $$
     red = \frac{1}{size * size} * (\sum_{i=x}^{x + size} \sum_{j=y}^{y + size} imageMatrix[i][j].red)
 $$
+
 $$
     green = \frac{1}{size * size} * (\sum_{i=x}^{x + size} \sum_{j=y}^{y + size} imageMatrix[i][j].green)
 $$
+
 $$
     blue = \frac{1}{size * size} * (\sum_{i=x}^{x + size} \sum_{j=y}^{y + size} imageMatrix[i][j].blue)
 $$
