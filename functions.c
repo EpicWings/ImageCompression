@@ -1,175 +1,9 @@
-#include "declarations.h"
+#include "dependencies/declarations.h"
+#include "dependencies/queue.h"
+#include "dependencies/quadtree.h"
+#include "dependencies/imagematrix.h"
 
 #define zero 0
-
-void PrintQuadTree(TTree arb)
-{
-    if (!arb)
-    {
-        return;
-    }
-
-    if (arb->type == ColorNode)
-    {
-        printf("(%d %d %d)", ((RGB *)arb->info)->red, ((RGB *)arb->info)->green, ((RGB *)arb->info)->blue);
-        return;
-    }
-
-    printf("[");
-    printf("0 ");
-    PrintQuadTree(arb->topLeft);
-    PrintQuadTree(arb->topRight);
-    PrintQuadTree(arb->botLeft);
-    PrintQuadTree(arb->botRight);
-
-    printf("]");
-}
-
-// initialize a color node
-TTree InitCNode(unsigned char red, unsigned char green, unsigned char blue)
-{
-    TTree aux = (TTree)malloc(sizeof(TNode));
-    if (!aux)
-        return NULL;
-
-    aux->type = ColorNode;
-
-    aux->info = (RGB *)malloc(sizeof(RGB));
-    if (!aux->info)
-        return NULL;
-
-    ((RGB *)aux->info)->red = red;
-    ((RGB *)aux->info)->green = green;
-    ((RGB *)aux->info)->blue = blue;
-
-    aux->topLeft = aux->topRight = aux->botLeft = aux->botRight = NULL;
-
-    return aux;
-}
-
-// initialize an empty node
-TTree InitNode()
-{
-    TTree aux = (TTree)malloc(sizeof(TNode));
-    if (!aux)
-        return NULL;
-
-    aux->type = EmptyNode;
-    aux->info = NULL;
-    aux->topLeft = aux->topRight = aux->botLeft = aux->botRight = NULL;
-
-    return aux;
-}
-
-RGB **InitImageMatrix(unsigned int width, unsigned int height)
-{
-    RGB **imageMatrix = (RGB **)malloc(height * sizeof(RGB *));
-    if (!imageMatrix)
-        return NULL;
-
-    for (int i = 0; i < height; i++)
-    {
-        imageMatrix[i] = (RGB *)malloc(width * sizeof(RGB));
-        if (!imageMatrix[i])
-            return NULL;
-    }
-
-    return imageMatrix;
-}
-
-void DestroyNode(TTree arb)
-{
-    if (!arb)
-        return;
-
-    DestroyNode(arb->topLeft);
-    DestroyNode(arb->topRight);
-    DestroyNode(arb->botLeft);
-    DestroyNode(arb->botRight);
-
-    if (arb->type == ColorNode)
-        free(arb->info);
-
-    free(arb);
-}
-
-void DestroyTree(TTree *arb)
-{
-    if (!(*arb))
-        return;
-    DestroyNode(*arb);
-    *arb = NULL;
-}
-
-void DestroyImageMatrix(RGB ***imageMatrix, unsigned int height)
-{
-    for (int i = 0; i < height; i++)
-        free((*imageMatrix)[i]);
-    free(*imageMatrix);
-    *imageMatrix = NULL;
-}
-
-TQueue *InitQueue()
-{
-    TQueue *queue = (TQueue *)malloc(sizeof(TQueue));
-    if (!queue)
-        return NULL;
-
-    queue->first = NULL;
-    queue->last = NULL;
-
-    return queue;
-}
-
-void AddQueue(TQueue *q, TTree *tree)
-{
-    TList list = (TList)malloc(sizeof(TCell));
-    if (!list)
-        return;
-
-    list->info = *tree;
-    list->next = NULL;
-
-    if (q->last != NULL)
-        q->last->next = list;
-    else
-        q->first = list;
-
-    q->last = list;
-}
-
-TTree ExtractQueue(TQueue *q)
-{
-    if (q->first == NULL && q->last == NULL)
-        return NULL;
-
-    TList list = q->first;
-
-    q->first = q->first->next;
-
-    if (!q->first)
-        q->last = NULL;
-
-    TTree aux = list->info;
-    free(list);
-
-    return aux;
-}
-
-void DestroyQueue(TQueue **q)
-{
-    TList p, aux;
-    p = (*q)->first;
-
-    while (p)
-    {
-        aux = p;
-        p = p->next;
-        free(aux);
-    }
-    free(*q);
-    *q = NULL;
-}
 
 RGB AvgColor(RGB **imageMatrix, unsigned int size, unsigned int startX, unsigned int startY)
 {
@@ -194,7 +28,7 @@ RGB AvgColor(RGB **imageMatrix, unsigned int size, unsigned int startX, unsigned
     return avgColor;
 }
 
-unsigned long long avgMean(RGB **imageMatrix, RGB avgColor, unsigned int size, unsigned int startX, unsigned int startY)
+unsigned long long AvgMean(RGB **imageMatrix, RGB avgColor, unsigned int size, unsigned int startX, unsigned int startY)
 {
     unsigned long long mean = 0;
 
@@ -213,7 +47,7 @@ unsigned long long avgMean(RGB **imageMatrix, RGB avgColor, unsigned int size, u
     return mean;
 }
 
-// read the arg. when executing
+// read the arguments from the command line and execute the program
 void ReadExecArg(int argc, char *argv[])
 {
     TTree arb = NULL;
@@ -293,7 +127,7 @@ void CompressImage(RGB ***imageMatrix, TTree *arb, unsigned int size, unsigned i
         return;
 
     RGB avgColor = AvgColor(*imageMatrix, size, startX, startY);
-    unsigned long long mean = avgMean(*imageMatrix, avgColor, size, startX, startY);
+    unsigned long long mean = AvgMean(*imageMatrix, avgColor, size, startX, startY);
 
     if (mean > similarity)
     {
