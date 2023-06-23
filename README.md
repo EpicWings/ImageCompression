@@ -86,5 +86,5 @@ $$
 -   The function avgMean calculates the average mean of a region.
 
 $$
-    mean = \frac{1}{3 * size^2} * (\sum_{i=x}^{x + size} \sum_{j=y}^{y + size} (avgColor.red - imageMatrix[i][j].red)^2 + (avgColor.green - imageMatrix[i][j].green)^2 + (avgColor.blue - imageMatrix[i][j].blue)^2)
+    mean = \frac{1}{3 * size^2} * (\sum_{i=x}^{x + size} \sum_{j=y}^{y + size} (red - imageMatrix[i][j].red)^2 + (green - imageMatrix[i][j].green)^2 + (blue- imageMatrix[i][j].blue)^2)
 $$
